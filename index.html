@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Video Player</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+            min-height: 100vh;
+            color: var(--tg-theme-text-color, #333);
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--tg-theme-text-color, white);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: var(--tg-theme-secondary-bg-color, rgba(255, 255, 255, 0.95));
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color, #555);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--tg-theme-hint-color, #e1e8ed);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: var(--tg-theme-bg-color, white);
+            color: var(--tg-theme-text-color, #333);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--tg-theme-button-color, #667eea);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: var(--tg-theme-button-color, linear-gradient(135deg, #667eea, #764ba2));
+            color: var(--tg-theme-button-text-color, white);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--tg-theme-hint-color, #667eea);
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--tg-theme-button-color, #667eea);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .video-card {
+            background: var(--tg-theme-secondary-bg-color, white);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .video-thumbnail {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            cursor: pointer;
+            background: var(--tg-theme-button-color, linear-gradient(45deg, #667eea, #764ba2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 3em;
+        }
+
+        .video-info {
+            padding: 15px;
+        }
+
+        .video-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--tg-theme-text-color, #333);
+            line-height: 1.4;
+        }
+
+        .video-meta {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #666);
+            margin-bottom: 12px;
+        }
+
+        .video-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+
+        .modal-content {
+            position: relative;
+            margin: 5% auto;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal video {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #c33;
+        }
+
+        .success {
+            background: #efe;
+            color: #363;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #363;
+        }
+
+        .info {
+            background: var(--tg-theme-secondary-bg-color, #e3f2fd);
+            color: var(--tg-theme-text-color, #1565c0);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid var(--tg-theme-button-color, #1565c0);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Telegram Video Player</h1>
+            <p>Stream videos from your Telegram channel</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="channelUsername">Channel Username (without @):</label>
+                <input type="text" id="channelUsername" value="androidcoders11" placeholder="Enter channel username">
+            </div>
+
+            <div class="control-group">
+                <label for="fileId">Video File ID (for direct access):</label>
+                <input type="text" id="fileId" placeholder="Enter Telegram file ID">
+            </div>
+
+            <button class="btn" onclick="fetchChannelInfo()">ℹ️ Check Channel</button>
+            <button class="btn" onclick="playDirectVideo()">▶️ Play Direct Video</button>
+            <button class="btn" onclick="loadDemoVideos()">🎯 Load Demo</button>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+
+        <div id="videoContainer" class="video-grid"></div>
+
+        <div id="errorContainer"></div>
+    </div>
+
+    <!-- Video Modal -->
+    <div id="videoModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <video id="modalVideo" controls>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+
+    <script>
+        const BOT_TOKEN = '8116525516:AAEfHyoo29nsMusk8fYtGClZn-0QCIUXVR4';
+        let currentVideos = [];
+        let tg = null;
+
+        // Initialize Telegram Web App
+        function initTelegramWebApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                
+                console.log('Telegram WebApp initialized:', tg);
+                console.log('User data:', tg.initDataUnsafe?.user);
+                
+                showInfo('Telegram Web App initialized successfully!');
+                
+                // Apply theme
+                applyTelegramTheme();
+                
+                // Set main button if needed
+                tg.MainButton.setText('Refresh Videos');
+                tg.MainButton.onClick(loadDemoVideos);
+                tg.MainButton.show();
+                
+            } else {
+                console.warn('Telegram WebApp not available');
+                showError('This app should be opened in Telegram');
+            }
+        }
+
+        function applyTelegramTheme() {
+            if (!tg || !tg.themeParams) return;
+            
+            const root = document.documentElement;
+            const theme = tg.themeParams;
+            
+            if (theme.bg_color) {
+                document.body.style.background = theme.bg_color;
+            }
+        }
+
+        async function makeApiCall(method, params = {}) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.ok) {
+                    throw new Error(data.description || 'API call failed');
+                }
+
+                return data.result;
+            } catch (error) {
+                console.error('API call error:', error);
+                throw error;
+            }
+        }
+
+        async function fetchChannelInfo() {
+            const channelUsername = document.getElementById('channelUsername').value.trim();
+
+            if (!channelUsername) {
+                showError('Please enter a channel username');
+                return;
+            }
+
+            showLoading(true);
+            clearMessages();
+
+            try {
+                const channelInfo = await makeApiCall('getChat', {
+                    chat_id: `@${channelUsername}`
+                });
+
+                console.log('Channel info:', channelInfo);
+                
+                showSuccess(`Channel found: ${channelInfo.title || channelUsername}`);
+                showInfo(`
+                    <strong>Channel Information:</strong><br>
+                    • Title: ${channelInfo.title || 'N/A'}<br>
+                    • Type: ${channelInfo.type}<br>
+                    • ID: ${channelInfo.id}<br>
+                    • Members: ${channelInfo.members_count || 'N/A'}<br>
+                    <br>
+                    <em>Note: To fetch videos, the bot needs to be added as an admin to the channel, or you need to provide specific file IDs.</em>
+                `);
+
+            } catch (error) {
+                console.error('Error fetching channel info:', error);
+                showError(`Error: ${error.message}`);
+                
+                if (error.message.includes('chat not found')) {
+                    showInfo('Channel not found. Make sure the username is correct and the channel is public.');
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function playDirectVideo() {
+            const fileId = document.getElementById('fileId').value.trim();
+
+            if (!fileId) {
+                showError('Please enter a video file ID');
+                return;
+            }
+
+            showLoading(true);
+            clearMessages();
+
+            try {
+                const fileInfo = await makeApiCall('getFile', {
+                    file_id: fileId
+                });
+
+                const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.file_path}`;
+                
+                // Open video in modal
+                const modal = document.getElementById('videoModal');
+                const video = document.getElementById('modalVideo');
+                
+                video.src = fileUrl;
+                modal.style.display = 'block';
+                
+                // Play video
+                video.play().catch(error => {
+                    console.error('Error playing video:', error);
+                    showError('Error playing video. The file might be too large or protected.');
+                });
+
+                showSuccess('Video loaded successfully!');
+
+            } catch (error) {
+                console.error('Error loading video:', error);
+                showError(`Error loading video: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function loadDemoVideos() {
+            clearMessages();
+            
+            // Create demo videos with different types of content
+            const demoVideos = [
+                {
+                    id: 'demo1',
+                    title: '🎥 Android Development Tutorial',
+                    description: 'Learn Android app development basics',
+                    duration: 1200, // 20 minutes
+                    size: 50000000, // 50MB
+                    thumbnail: '📱',
+                    date: new Date().toISOString(),
+                    isDemo: true
+                },
+                {
+                    id: 'demo2',
+                    title: '🚀 Kotlin Programming Guide',
+                    description: 'Master Kotlin for Android development',
+                    duration: 1800, // 30 minutes
+                    size: 75000000, // 75MB
+                    thumbnail: '⚡',
+                    date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+                    isDemo: true
+                },
+                {
+                    id: 'demo3',
+                    title: '🎨 UI/UX Design Principles',
+                    description: 'Create beautiful Android interfaces',
+                    duration: 900, // 15 minutes
+                    size: 35000000, // 35MB
+                    thumbnail: '🎨',
+                    date: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+                    isDemo: true
+                }
+            ];
+
+            currentVideos = demoVideos;
+            displayVideos(currentVideos);
+            showSuccess(`Loaded ${currentVideos.length} demo videos`);
+            showInfo('These are demo videos. To load real videos, add your bot as an admin to the channel or use direct file IDs.');
+        }
+
+        function displayVideos(videos) {
+            const container = document.getElementById('videoContainer');
+            container.innerHTML = '';
+
+            if (videos.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--tg-theme-hint-color, #666);">No videos found</p>';
+                return;
+            }
+
+            videos.forEach((video, index) => {
+                const videoCard = createVideoCard(video, index);
+                container.appendChild(videoCard);
+            });
+        }
+
+        function createVideoCard(video, index) {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+
+            const duration = formatDuration(video.duration);
+            const fileSize = formatFileSize(video.size);
+            const date = new Date(video.date).toLocaleDateString();
+
+            card.innerHTML = `
+                <div class="video-thumbnail" onclick="playVideo(${index})">
+                    ${video.thumbnail}
+                </div>
+                <div class="video-info">
+                    <div class="video-title">${video.title}</div>
+                    <div class="video-meta">
+                        📅 ${date} • ⏱️ ${duration} • 📁 ${fileSize}
+                        <br>${video.description}
+                    </div>
+                    <div class="video-actions">
+                        <button class="btn btn-small" onclick="playVideo(${index})">▶️ Play</button>
+                        <button class="btn btn-small" onclick="shareVideo(${index})">📤 Share</button>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function playVideo(index) {
+            const video = currentVideos[index];
+            
+            if (video.isDemo) {
+                showInfo('This is a demo video. In a real implementation, this would play the actual video file.');
+                
+                // Show modal with placeholder
+                const modal = document.getElementById('videoModal');
+                const videoElement = document.getElementById('modalVideo');
+                
+                // Create a demo video element
+                videoElement.src = 'data:video/mp4;base64,'; // Empty video
+                videoElement.poster = 'data:image/svg+xml;base64,' + btoa(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+                        <rect width="800" height="450" fill="#667eea"/>
+                        <text x="400" y="200" text-anchor="middle" fill="white" font-size="48" font-family="Arial">
+                            ${video.thumbnail}
+                        </text>
+                        <text x="400" y="250" text-anchor="middle" fill="white" font-size="24" font-family="Arial">
+                            ${video.title}
+                        </text>
+                        <text x="400" y="300" text-anchor="middle" fill="white" font-size="16" font-family="Arial">
+                            Demo Video - ${duration}
+                        </text>
+                    </svg>
+                `);
+                
+                modal.style.display = 'block';
+                return;
+            }
+            
+            // Handle real video playback here
+            showError('Real video playback requires valid file ID and bot permissions');
+        }
+
+        function shareVideo(index) {
+            const video = currentVideos[index];
+            
+            if (tg && tg.showPopup) {
+                tg.showPopup({
+                    title: 'Share Video',
+                    message: `Do you want to share "${video.title}"?`,
+                    buttons: [
+                        {id: 'share', type: 'default', text: 'Share'},
+                        {id: 'cancel', type: 'cancel', text: 'Cancel'}
+                    ]
+                }, (buttonId) => {
+                    if (buttonId === 'share') {
+                        // Share functionality
+                        if (navigator.share) {
+                            navigator.share({
+                                title: video.title,
+                                text: video.description,
+                                url: window.location.href
+                            });
+                        } else {
+                            showInfo('Video shared! (Demo mode)');
+                        }
+                    }
+                });
+            } else {
+                showInfo('Share functionality available in Telegram Web App');
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('videoModal');
+            const video = document.getElementById('modalVideo');
+            
+            video.pause();
+            video.src = '';
+            modal.style.display = 'none';
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML += `<div class="error">❌ ${message}</div>`;
+        }
+
+        function showSuccess(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML += `<div class="success">✅ ${message}</div>`;
+        }
+
+        function showInfo(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML += `<div class="info">ℹ️ ${message}</div>`;
+        }
+
+        function clearMessages() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('videoModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Initialize app when page loads
+        window.addEventListener('load', function() {
+            initTelegramWebApp();
+            setTimeout(loadDemoVideos, 1000);
+        });
+
+        // Handle Telegram WebApp events
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.onEvent('mainButtonClicked', loadDemoVideos);
+            Telegram.WebApp.onEvent('backButtonClicked', function() {
+                if (document.getElementById('videoModal').style.display === 'block') {
+                    closeModal();
+                } else {
+                    Telegram.WebApp.close();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
